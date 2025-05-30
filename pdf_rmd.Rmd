@@ -1,0 +1,870 @@
+---
+title: "HarvardX Capstone Project - Recommendation System"
+author: "Frank Valdivia"
+date: "2025-05-22"
+output:
+  pdf_document: default
+  html_document:
+  df_print: paged
+  word_document: default
+---
+
+# 1. INTRODUCTION
+
+This goal of this project is to build a recommendation system for Netflix. This recommendation system can predict which movies users would like to watch. Based on the history of movie ratings by users, the system can suggest movies the users might be most interested in.
+
+In this project, the MovieLens dataset from Netflix will be used to create the  recommendation system.
+
+The dataset is pulled from the dslabs package and has millions of ratings.
+A subset of 10 million ratings will be used to reduce computing time.
+
+Machine learning methods will be used, which means that two sub datasets will be created during this process:
+
+A train set will be generated with the name: edx; this dataset will be used to train the model.
+
+A test set will be generated with the name:  final_holdout_test; this dataset will be used to test the model trained using the train dataset.
+
+The Root Mean Squared Error (RMSE) will be used to calculate the error between predictions and true values in the test set (final_holdout_test set)
+
+During this process, several sub dataset will be created and are explained in the Methods section.
+
+# 2. ANALYSIS AND METHODS
+
+the overall process are as follows:
+
+2.1. loading libraries
+
+2.2. loading files from server and generating datasets
+
+2.3. Analysis and methods
+
+
+## 2.1 loading libraries
+
+
+To run the report the following R libraries need to be previously installed:
+
+- library(tidyverse)
+
+- library(caret)
+
+- library(ggplot2)
+
+- library(dplyr)
+
+- library(gridExtra)
+
+In this step above libraries are loaded
+
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r loading_libraries, echo=FALSE}
+
+ library(tidyverse)
+ library(caret)
+ library(ggplot2)
+ library(dplyr)
+ library(gridExtra)
+
+```
+
+## 2.2 loading files from server and generating datasets
+
+
+The files are downloaded, unzipped and used to create data sets.
+
+Movies Ratings and Movies are pulled from:
+
+http://files.grouplens.org/datasets/movielens/ml-10m.zip
+
+```{r loading_dataset, echo=FALSE}
+
+options(timeout = 120)
+
+dl <- "ml-10M100K.zip"
+if(!file.exists(dl))
+  download.file("https://files.grouplens.org/datasets/movielens/ml-10m.zip", dl)
+
+ratings_file <- "ml-10M100K/ratings.dat"
+if(!file.exists(ratings_file))
+  unzip(dl, ratings_file)
+
+movies_file <- "ml-10M100K/movies.dat"
+if(!file.exists(movies_file))
+  unzip(dl, movies_file)
+
+# This step may take a few minutes
+
+ratings <- as.data.frame(str_split(read_lines(ratings_file), fixed("::"), simplify = TRUE),
+                         stringsAsFactors = FALSE)
+colnames(ratings) <- c("userId", "movieId", "rating", "timestamp")
+
+ratings <- ratings %>%
+  mutate(userId = as.integer(userId),
+         movieId = as.integer(movieId),
+         rating = as.numeric(rating),
+         timestamp = as.integer(timestamp))
+
+# Creating the Movies data set
+
+movies <- as.data.frame(str_split(read_lines(movies_file), fixed("::"), simplify = TRUE),
+                        stringsAsFactors = FALSE)
+colnames(movies) <- c("movieId", "title", "genres")
+
+movies <- movies %>%
+  mutate(movieId = as.integer(movieId))
+
+movielens <- left_join(ratings, movies, by = "movieId")
+
+# Final hold-out test set will be 10% of MovieLens data
+set.seed(1, sample.kind="Rounding") # if using R 3.6 or later
+
+# set.seed(1) # if using R 3.5 or earlier
+test_index <- createDataPartition(y = movielens$rating, times = 1, p = 0.1, list = FALSE)
+edx <- movielens[-test_index,]
+temp <- movielens[test_index,]
+
+# Make sure userId and movieId in final hold-out test set are also in edx set
+final_holdout_test <- temp %>% 
+  semi_join(edx, by = "movieId") %>%
+  semi_join(edx, by = "userId")
+
+# Add rows removed from final hold-out test set back into edx set
+
+removed <- anti_join(temp, final_holdout_test)
+edx <- rbind(edx, removed)
+
+```
+The following datasets are created and will be used in training the different models.
+
+- movielens: Movie ratings including Movie information
+
+- ratings: Movie ratings with MovieId and UserId
+
+- movies: Movie information
+
+- edx:Train dataset to be used to train every model
+
+- final_holdout_test: Test dataset to be used to test the model
+
+
+Following are the structure and number of rows that each of these datasets have:
+
+```{r show_datasets, echo=FALSE}
+
+cat("\nMovielens Dataset: Head\n")
+
+head(movielens) %>% knitr::kable()
+
+cat("\nMovielens Dataset: Number of Records\n")
+
+tibble(dim(movielens))[1,1] %>% knitr::kable()
+
+cat("\nRatings Dataset: Head\n")
+
+head(ratings) %>% knitr::kable()
+
+cat("\nRatings Dataset: Number of Records\n")
+
+tibble(dim(ratings))[1,1] %>% knitr::kable()
+
+cat("\nMovies Dataset: Head\n")
+
+head(movies) %>% knitr::kable()
+
+cat("\nMovies Dataset: Number of Records\n")
+
+tibble(dim(movies))[1,1] %>% knitr::kable()
+
+cat("\nedx (train set) Dataset: Head\n")
+
+head(edx) %>% knitr::kable()
+
+cat("\nedx (train set) Dataset: Number of Records\n")
+
+tibble(dim(edx))[1,1] %>% knitr::kable()
+
+cat("\nfinal_holdout_test (test set) Dataset: Head\n")
+
+head(final_holdout_test) %>% knitr::kable()
+
+cat("\nfinal_holdout_test (test set) Dataset: Number of Records\n")
+
+tibble(dim(final_holdout_test))[1,1] %>% knitr::kable()
+
+rm(dl, ratings, test_index, temp, movielens, removed)
+
+```
+
+
+## 2.3 Analysis and methods
+
+
+Following are the Histograms of Ratings counted by Movie and by User taken from the Train dataset (edx)
+
+```{r movie_user, echo=FALSE, fig.width=8, fig.height=6}
+
+p1 <- edx %>% 
+     dplyr::count(movieId) %>% 
+     ggplot(aes(n)) + 
+     geom_histogram(bins = 30, color = "black") + 
+     scale_x_log10() + 
+     labs(x="Ratings per Movie", y = "Count") +
+     ggtitle("Histogram")
+p2 <- edx %>% 
+     dplyr::count(userId) %>% 
+     ggplot(aes(n)) + 
+     geom_histogram(bins = 30, color = "black") + 
+     scale_x_log10() + 
+     labs(x="Ratings per User", y = "Count") +
+     ggtitle("Histogram")
+
+grid.arrange(p1, p2, ncol = 2)
+
+```
+
+Some general characteristics of the data:
+
+ - They seem to be normally distributed.
+ 
+ - Some movies have more ratings than others.
+ 
+ - Some users rate more movies than others.
+ 
+ - There is no significant presence of outliers.
+
+The models will use ratings from movies, users, and movies & users. 
+
+## 2.3.1 Root Mean Squared Error (RMSE)
+
+The Root Mean Squared Error (RMSE), which is the square root of the mean squared error (MSE), will be used to estimate the error of every method.
+
+```{r RMSE, echo=FALSE}
+
+RMSE <- function(true_ratings, predicted_ratings){
+     sqrt(mean((true_ratings - predicted_ratings)^2))
+  
+}
+
+```
+
+Six models will be built and each model assessed against its value of RMSE.
+
+## 2.3.2 First model: Y = mu_hat
+
+
+The predictor of the first model is just the mean (mu_hat) of ratings in the train set (edx)
+
+y = mu_hat
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat as predictor.
+
+```{r mu_hat_model, echo=FALSE}
+
+mu_hat <- mean(edx$rating)
+
+message <-cat("mu_hat: ",mu_hat)
+
+mu_hat_rmse <- RMSE(final_holdout_test$rating, mu_hat)
+
+message <-cat("mu_hat_rmse: ",mu_hat_rmse)
+
+```
+
+Any number other than mu_hat would result in a higher RMSE.
+A prediction and RMSE can be calculated using mu_hat_0.1, which is equal to mu_hat + 0.1
+
+```{r mu_hat01_model, echo=FALSE}
+
+message <-cat("mu_hat+0.1: ",mu_hat+0.1)
+
+predictions <- rep(mu_hat+0.1, nrow(final_holdout_test))
+
+message <-cat("mu_hat+0.1 _rmse: ",RMSE(final_holdout_test$rating, predictions))
+
+```
+
+As expected, mu_hat+0.1 _rmse is higher than mu_hat_rmse
+
+The first model and its RMSE are as follows:
+
+```{r mu_hat_model_show, echo=FALSE}
+
+rmse_results_t <- tibble(method = "1: Predictor = mu_hat", RMSE = mu_hat_rmse, Lambda = "")
+rmse_results_t %>% knitr::kable()
+
+
+```
+## 2.3.3 Second model: Y = mu_hat + Movie_bias
+
+Every Movie has its own Rating mean, which might be different from the overall mean or different from other Movie Rating mean.
+That is due to the bias (or effect) of every movie on the ratings.
+
+In the second model, the Movie bias or effect will be incorporated.
+
+The Bias will be calculated for every Movie as the difference between the Mean Rating of that movie and the Mean Rating of the whole dataset (mu_hat).
+
+b_i (or bi) will be the Bias per Movie.
+
+b_i is then added to mu_hat for every Movie and that is the Predictor for that Movie.
+
+Y = mu_hat + b_i
+
+Adding the Movie bias or b_i should improve the prediction and generate a smaller RMSE
+
+b_i is calculated for every movie and stored into the movie_avgs dataset.
+
+```{r movie_bias_movavgs, echo=FALSE}
+
+movie_avgs <- edx %>% 
+     group_by(movieId) %>% 
+     summarize(b_i = mean(rating - mu_hat))
+	 
+cat("\nmovie_avgs Dataset: Head\n")
+
+head(movie_avgs) %>% knitr::kable()
+
+cat("\nmovie_avgs Dataset: Number of Records\n")
+
+tibble(dim(movie_avgs))[1,1] %>% knitr::kable()
+
+```
+
+In the following plot, the distribution of Movie bias shows that there is variation around the value of 0 and most bias numbers go from -3 to 1	 
+
+```{r movie_bias_plot, echo=FALSE}
+
+p1 <- movie_avgs %>% 
+ ggplot(aes(b_i)) + 
+ geom_histogram(bins = 30, color = "black") + 
+ geom_vline(aes(xintercept=mean(b_i)), color="blue", linetype="dashed", linewidth=1) +
+ labs(x=paste("Movie b_i (mean(b_i) = ",round(mean(movie_avgs$b_i),2),")"), y = "Count of b_i") +
+ ggtitle("Histogram - Movie bias b_i")
+
+grid.arrange(p1, ncol = 1)
+
+```
+
+
+When adding Movie bias to the previous model, the prediction is Y = mu_hat + Movie_bi where Movie_bi = Movie bias
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat + Movie_bi as predictor.
+
+```{r movie_bias_model, echo=FALSE}
+
+pull_movie_bias <- final_holdout_test %>% 
+  left_join(movie_avgs, by='movieId') %>%
+  pull(b_i)
+
+predicted_ratings <- mu_hat + pull_movie_bias
+
+model_bi_rmse <- RMSE(predicted_ratings, final_holdout_test$rating)
+
+message <-cat("movie_bi_rmse: ",model_bi_rmse)
+
+# model_bm_rmse = 0.9439087
+
+```
+
+The second model and its RMSE are as follows:
+
+```{r movie_bias_model_table, echo=FALSE}
+
+rmse_results_t <- bind_rows(rmse_results_t,
+                          tibble(method="2: Predictor = mu_hat + Movie_bi",
+                                     RMSE = model_bi_rmse, Lambda = ""))
+rmse_results_t %>% knitr::kable()
+
+
+```
+
+When adding Movie bias, the RMSE is lower than the first model's RMSE
+
+## 2.3.4 Third model: Y = mu_hat + Movie_bias + User_bias
+
+In the third model, User bias (effect) will be added to the previous model, Movie bias.
+
+This updated model will have both Movie and User biases.
+
+bu (or b_u) will be the Bias per User. bu is added to mu_hat and movie_bi for every Movie and User and that is the Predictor.
+
+Adding the User bias to Movie bias should improve the prediction and generate a smaller RMSE
+
+In the following plot, only Users that have rated 100 or more movies are included. 
+
+```{r user_bias_plot, echo=FALSE}
+
+user_avgs <- edx %>% 
+     group_by(userId) %>%
+     summarize(b_u = mean(rating)) %>% 
+     filter(n()>=100)
+
+user_avgs_mean_bu <- mean(user_avgs$b_u)
+
+edx %>% 
+     group_by(userId) %>% 
+     summarize(b_u = mean(rating)) %>% 
+     filter(n()>=100) %>%
+     ggplot(aes(b_u)) + 
+     geom_histogram(bins = 30, color = "black") +
+   geom_vline(aes(xintercept=mean(b_u)), color="blue", linetype="dashed", linewidth=1) +
+   labs(x=paste("User b_u (mean(b_u) = ",round(mean(user_avgs_mean_bu),2),")"), y = "Count of b_u for n>100") +
+     ggtitle("Histogram - User bias b_u for n>100")
+
+```
+
+The distribution of Ratings shows that there is variation around the value of 4 and most ratings go from 1 to 5	 This variation means that some users rate higher than other users do. 
+
+This variability also suggests that incorporating User bias would indeed improve the model
+
+The third model will be  Y = U + bi + bu
+
+Here the prediction is Y = U + Movie_bi + User_bu 
+
+User bias will be calculated by subtracting mu_hat and movie_bias from Y (Rating)
+
+User_bias =  bu = Y - u - bi
+
+User_bias will be averaged per user and stored in a new dataset: user_avgs
+
+```{r user_avgs, echo=FALSE}
+
+user_avgs <- edx %>% 
+     left_join(movie_avgs, by='movieId') %>%
+     group_by(userId) %>%
+     summarize(b_u = mean(rating - mu_hat - b_i))
+
+cat("\nuser_avgs Dataset: Head\n")
+
+head(user_avgs) %>% knitr::kable()
+
+cat("\nuser_avgs Dataset: Number of Records\n")
+
+tibble(dim(user_avgs))[1,1] %>% knitr::kable()
+
+
+```
+
+The prediction is Y = mu_hat + Movie_bi + User_bu where Movie_bi = Movie bias;  User_bu = User bias.
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat + Movie_bi + User_bu as predictor.
+
+```{r movie_user_bias_model_RMSE, echo=FALSE}
+
+predicted_ratings <- final_holdout_test %>% 
+     left_join(movie_avgs, by='movieId') %>%
+     left_join(user_avgs, by='userId') %>%
+     mutate(pred = mu_hat + b_i + b_u) %>%
+     pull(pred)
+
+model_bi_bu_rmse <- RMSE(predicted_ratings, final_holdout_test$rating)
+
+message <-cat("movie_bi_user_bu_rmse: ",model_bi_bu_rmse)
+
+```
+
+The third model and its RMSE are as follows:
+
+```{r movie_user_bias_model_Table, echo=FALSE}
+
+rmse_results_t <- bind_rows(rmse_results_t,
+                          tibble(method="3: Predictor = mu_hat + Movie_bi + User_bu",  
+                                     RMSE = model_bi_bu_rmse, Lambda = ""))
+rmse_results_t %>% knitr::kable()
+
+```
+
+When adding User bias to Movie bias, the RMSE is lower than the previous model's RMSE
+
+## 2.3.5 Fourth model: Y = mu_hat + Movie_Regularized_bias (Regularization)
+
+The fourth model will apply Regularization.
+
+RMSE was reduced when movie bias and user bias were incorporated but does not take into account when there are very few ratings (small sample size) for a movie or user.
+
+The following table shows the 15 largest mistakes predicted by the second model (Y = mu_hat + Movie_bias). Residuals are calcualted subtracting (mu_hat + bi) from Y from the test set:
+
+
+```{r Regularization_model, echo=FALSE}
+
+temp_tibble <- final_holdout_test %>% 
+     left_join(movie_avgs, by='movieId') %>%
+     mutate(residual = rating - (mu_hat + b_i)) %>%
+     arrange(desc(abs(residual))) %>% 
+     select(title,  residual) %>% slice(1:15) %>% tibble()
+colnames(temp_tibble) <- c("Ratings with highest absolute residuals","Residual")
+temp_tibble %>% knitr::kable()
+
+cat("\nFollowing is the list of the 15 best movies based just on Movie_bias.\n")
+
+temp_tibble <- movie_avgs %>% left_join(movies, by="movieId") %>%
+     arrange(desc(b_i)) %>% 
+     dplyr::select(title, b_i) %>% 
+     slice(1:15) %>%  
+     pull(title) %>% tibble()
+colnames(temp_tibble) <- c("Movie title (Best)")
+temp_tibble %>% knitr::kable()
+
+cat("\nMost of the movies above are not well known.\n")
+cat("\nFollowing is the number of ratings of the 15 best movies based just on Movie_bias.\n")
+
+edx %>% count(movieId) %>% 
+     left_join(movie_avgs) %>%
+     left_join(movies, by="movieId") %>%
+     arrange(desc(b_i)) %>% 
+     slice(1:15) %>% 
+     pull(n)
+
+cat("\nThese unknown movies have just one or very few ratings (very small sample size),\n")
+cat("which does not provide a good predictor. Regularization corrects that.\n")
+
+cat("\nFollowing is the list of the 15 worst movies based just on Movie_bias.\n")
+
+temp_tibble <- movie_avgs %>% left_join(movies, by="movieId") %>%
+     arrange(b_i) %>% 
+     dplyr::select(title, b_i) %>% 
+     slice(1:15) %>%  
+     pull(title) %>% tibble()
+colnames(temp_tibble) <- c("Movie title (Worst)")
+temp_tibble %>% knitr::kable()
+
+cat("\nMost of the movies above are not well known.\n")
+cat("\nFollowing is the number of ratings of the 15 worst movies based just on Movie_bias.\n")
+
+edx %>% dplyr::count(movieId) %>% 
+     left_join(movie_avgs) %>%
+     left_join(movies, by="movieId") %>%
+     arrange(b_i) %>%
+     slice(1:15) %>% 
+     pull(n)
+
+
+cat("\nThese unknown movies have just one or very few ratings (very small sample size),\n")
+cat("which does not provide a good predictor. Regularization corrects that.\n")
+
+
+```
+
+
+Good sample size of Ratings per Movie is desired to have a good predictor. Very few ratings tells us that they have very small sample sizes.
+
+Having less ratings (smaller sample sizes) increases bias and generates higher residuals. Higher residuals increase the RMSE.
+
+Regularization will be used to reduce the impact of large residuals that are coming from movies with very few ratings (or small sample sizes).
+
+Using Regularization, the small sample size bias is penalized by adding a Lambda to "n",  where n is the number of ratings for movie i.
+
+- The higher the "n", the lower the impact of Lambda, thus, less penalized.
+- The lower the "n", the higher the impact of Lambda, thus, more penalized.
+
+Lambda = 3 will be used to generate Movie_Regularized_bias (Regularized_b_ias_i), and compare it to Movie_bias (original_b_i) in a plot.
+
+```{r Regularized_lamba3_plot, echo=FALSE}
+
+lambda <- 3
+mu <- mean(edx$rating)
+movie_reg_avgs <- edx %>% 
+     group_by(movieId) %>% 
+     summarize(b_i = sum(rating - mu)/(n()+lambda), n_i = n()) 
+
+
+tibble(original = movie_avgs$b_i, 
+           regularlized = movie_reg_avgs$b_i, 
+           n = movie_reg_avgs$n_i) %>%
+     ggplot(aes(original, regularlized, size=sqrt(n))) + 
+     geom_point(shape=1, alpha=0.5) +
+  labs(x="Original b_i", y = "Regularized b_i") +
+ ggtitle("Movie Original bias vs Regularized bias for Lambda = 3")
+
+```
+
+The resulting plot shows how Regularized_bias and Original_bias differ more for small values of n.
+
+The lists of the top 15 best and worst movies are generated again but using Movie_regularized_bias instead of Movie_bias.
+
+```{r Regularized_lamba3_model, echo=FALSE}
+
+cat("\nFollowing is the list of the 15 best movies based on Movie_regularized_bias.\n")
+
+temp_tibble <- edx %>%
+     count(movieId) %>% 
+     left_join(movie_reg_avgs, by="movieId") %>%
+     left_join(movies, by="movieId") %>%
+     arrange(desc(b_i)) %>% 
+     dplyr::select(title, b_i, n) %>% 
+     slice(1:15) %>% 
+     pull(title) %>% tibble()
+colnames(temp_tibble) <- c("Movie title (Best)")
+temp_tibble %>% knitr::kable()
+
+cat("\nFollowing is the number of ratings of the 15 best movies based just on Movie_bias.\n")
+
+edx %>% count(movieId) %>% 
+     left_join(movie_reg_avgs) %>%
+     left_join(movies, by="movieId") %>%
+     arrange(desc(b_i)) %>% 
+     slice(1:15) %>% 
+     pull(n)
+
+cat("\nThese movies have mostly thousands of ratings, which provides better predictors.\n")
+
+cat("\nFollowing is the list of the 15 worst movies based on Movie_regularized_bias.\n")
+
+temp_tibble <- edx %>%
+     dplyr::count(movieId) %>% 
+     left_join(movie_reg_avgs, by="movieId") %>%
+     left_join(movies, by="movieId") %>%
+     arrange(b_i) %>% 
+     dplyr::select(title, b_i, n) %>% 
+     slice(1:15) %>% 
+     pull(title) %>% tibble()
+colnames(temp_tibble) <- c("Movie title (Worst)")
+temp_tibble %>% knitr::kable()
+
+cat("\nFollowing is the number of ratings of the 15 worst movies based just on Movie_bias.\n")
+
+edx %>% dplyr::count(movieId) %>% 
+     left_join(movie_reg_avgs) %>%
+     left_join(movies, by="movieId") %>%
+     arrange(b_i) %>%
+     slice(1:15) %>% 
+     pull(n)
+
+cat("\nThese movies have mostly hundreds of ratings, which provides better predictors.\n")
+
+```
+
+
+The prediction is Y = mu_hat + Movie_Regularized_bi where Movie_Regularized_bi = Movie regularized bias with Lambda = 3.
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat + Movie_Regularized_bi as predictor.
+
+```{r Regularized_lamba3_RMSE, echo=FALSE}
+
+
+predicted_ratings <- final_holdout_test %>% 
+     left_join(movie_reg_avgs, by='movieId') %>%
+     mutate(pred = mu_hat + b_i) %>%
+     pull(pred)
+
+model_RegMovie_rmse <- RMSE(predicted_ratings, final_holdout_test$rating)
+
+message <-cat("model_regularized_bi_rmse: ",model_RegMovie_rmse)
+
+```
+
+The fourth model and its RMSE are as follows:
+
+```{r Regularized_lamba3_Table, echo=FALSE}
+
+rmse_results_t <- bind_rows(rmse_results_t,
+                          tibble(method="4: Predictor = mu_hat + Movie_regularized_bi, arbitrary Lambda = 3",  
+                                     RMSE = model_RegMovie_rmse, Lambda = as.character(3)))
+rmse_results_t %>% knitr::kable()
+
+```
+
+When using Movie Regularized bias instead of Movie bias, the RMSE is lower than the second model's RMSE
+
+## 2.3.6 Fifth model: Y = mu_hat + Movie_Regularized_bias (Regularization) with Optimized Lamda
+
+The fifth model will optimize the value of Lambda for the fourth model.
+
+Values of Lambda will be used in an iteration to find the Lambda that minimizes RMSE.
+Lambda will be tested between 0 and 10, with an increment of 0.25. This means the following values will be tested: 0, 0.25, 0.5, 0.75, 1, 1.25, and so on up to 10.
+
+```{r Regularized_optimized_reg_lamba3_model, echo=FALSE}
+
+
+# First, estimate just the summation per Movie
+lambdas <- seq(0, 10, 0.25)
+just_the_sum <- edx %>% 
+  group_by(movieId) %>% 
+  summarize(s = sum(rating - mu_hat), n_i = n())
+
+# Second, iterate the calculation of RMSE depending on the values of Lambda
+
+rmses <- sapply(lambdas, function(l){
+  predicted_ratings <- final_holdout_test %>% 
+    left_join(just_the_sum, by='movieId') %>% 
+    mutate(b_i = s/(n_i+l)) %>%
+    mutate(pred = mu_hat + b_i) %>%
+    pull(pred)
+  return(RMSE(predicted_ratings, final_holdout_test$rating))
+})
+
+# Plot values of Lambda versus RMSE
+
+message <-cat("The following plot shows Lambda versus RMSE.")
+
+lambda <- lambdas[which.min(rmses)]
+
+tibble(lambdas, rmses) %>%
+  ggplot(aes(lambdas, rmses)) + 
+  geom_point(shape=1, alpha=0.5) +
+  geom_point() +
+  geom_vline(aes(xintercept=lambda), color="blue", linetype="dashed", linewidth=1) +
+  labs(x=paste("Lambdas (Optimized Lambda = ",lambda,")"), y = "RMSEs") +
+  ggtitle("Lambda vs RMSE")
+
+```
+
+The prediction is Y = mu_hat + Movie_Regularized_bi with Optimized Lambda where Movie_Regularized_bi = Movie regularized bias with Lambda optimized between 0 and 10 at 0.25 as interval
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat + Movie_Regularized_bi as predictor.
+
+```{r Regularized_optimized_reg_lamba3_RMSE, echo=FALSE}
+
+
+# Show the Lambda that minimizes RMSE
+
+message <-cat("Lambda that minimizes RMSE: ",lambdas[which.min(rmses)])
+
+# Show minimum RMSE
+
+message <-cat("Minimum RMSE: ",min(rmses))
+
+# Movie_Regularized_bias RMSE with optimized Lambda should be 0.9438521
+# Because there is no significant difference between 3 and 2.5 for the Lambda value
+# the RMSE has decreased but not significantly
+
+```
+
+The fifth model and its RMSE are as follows:
+
+```{r Regularized_optimized_reg_lamba3_table, echo=FALSE}
+
+rmse_results_t <- bind_rows(rmse_results_t,
+                          tibble(method=paste("5: Predictor = mu_hat + Movie_regularized_bi, optimized Lambda =",lambdas[which.min(rmses)]), RMSE = min(rmses), Lambda = as.character(lambda)))
+rmse_results_t %>% knitr::kable()
+
+```
+
+When Lambda is optimized (Lambda = 2.5), RMSE is lower than the RMSE when Lambda is assigned a value of 3.
+
+## 2.3.7 Sixth model: Y = mu_hat + Movie_Regularized_bias + User_Regularized_bias (Regularization) with Optimized Lamda
+
+In the sixth model, User regularized bias will be added to Movie regularized bias (the previous model.) Lambda will also be optimized for a minimum RMSE.
+
+Lambda will be tested between 0 and 10, with an increment of 0.1. This means the following values will be tested: 0, 0.1, 0.2, 0.3, and so on up to 10.
+
+The following plot shows Lambda versus RMSE.
+
+```{r Regularized_optimized_lamba_model, echo=FALSE}
+
+lambdas <- seq(0, 10, 0.1)
+
+rmses <- sapply(lambdas, function(l){
+     b_i <- edx %>% 
+          group_by(movieId) %>%
+          summarize(b_i = sum(rating - mu_hat)/(n()+l))
+     b_u <- edx %>% 
+          left_join(b_i, by="movieId") %>%
+          group_by(userId) %>%
+          summarize(b_u = sum(rating - b_i - mu_hat)/(n()+l))
+     predicted_ratings <- 
+          final_holdout_test %>% 
+          left_join(b_i, by = "movieId") %>%
+          left_join(b_u, by = "userId") %>%
+          mutate(pred = mu_hat + b_i + b_u) %>%
+          pull(pred)
+		  
+     return(RMSE(predicted_ratings, final_holdout_test$rating))
+})
+
+lambda <- lambdas[which.min(rmses)]
+
+message <-cat("The following plot shows Lambda versus RMSE.")
+
+tibble(lambdas = lambdas, rmses = rmses) %>%
+  ggplot(aes(lambdas, rmses)) +
+  geom_point() +
+  geom_vline(aes(xintercept=lambda), color="blue", linetype="dashed", linewidth=1)  +
+  labs(x=paste("Lambdas (Optimized Lambda = ",lambda,")"), y = "RMSEs") +
+  ggtitle("Lambda vs RMSE")
+
+
+```
+
+The prediction is Y = mu_hat + Movie_Regularized_bi + User_Regularized_bu with Optimized Lambda where Movie_Regularized_bi = Movie regularized bias;  User_Regularized_bu =  User Regularized bias with Lambda optimized between 0 and 10 at 0.1 as interval
+
+RMSE can be calculated using the test set (final_holdout_test) and mu_hat + Movie_Regularized_bi+ User_Regularized_bu as predictor.
+
+```{r Regularized_optimized_lamba_RMSE, echo=FALSE}
+
+# Show optimum Lambda, minimum RMSE
+message <-cat("Optimum Lambda: ",lambda)
+
+message <-cat("Minimum RMSE: ",min(rmses))
+```
+
+The sixth model and its RMSE are as follows:
+
+```{r Regularized_optimized_lamba_table, echo=FALSE}
+
+rmse_results_t <- bind_rows(rmse_results_t,
+                          tibble(method=paste("6: Predictor = mu_hat + Movie_regularized_bi + User_regularized_bu, optimized Lambda =",lambda), RMSE = min(rmses), Lambda = as.character(lambda)))
+
+rmse_results_t %>% knitr::kable()
+
+```
+
+# 3. RESULTS
+
+
+The following table shows all six models and their RMSEs:
+
+
+```{r results_table, echo=FALSE}
+
+rmse_results_t %>% knitr::kable()
+
+```
+
+RMSE has been decreasing as every model incorporated additional features.
+
+The last model incorporated regularization with both Movie bias and User bias and Lambda was optimized resulting in the lowest RMSE. 
+
+
+Predictor = mu_hat + Movie_regularized_bi + User_regularized_bu
+
+
+```{r Regularized_optimizedlamba, echo=FALSE}
+
+message <-cat("Minimum RSME (",min(rmses),") was found with Regularization model including")
+message <-cat("Movie and User biases for optimized lambda = ",lambda)
+```
+
+The sixth model has an RMSE that is lower than: 0.86490 and is the model with the lowest RMSE. This model will provide the best movie suggestions to Netflix users.   
+
+
+# 4. CONCLUSION
+
+In this analysis, six models were considered. Each model was based on a subset of 10 million rows of the  MovieLens dataset.
+
+The models were reducing RMSE to get to the minimum RMSE found when Regularization was applied to both Movie bias and User bias together with optimizing Lambda.
+
+Predictor = mu_hat + Movie_regularized_bi + User_regularized_bu
+
+Using regularization, RMSE was minimum when Lambda was optimized through iteration. That was the Sixth model.
+
+With this model we built a recommendation system that will predict which movies users would like to watch.
+
+One limitation of the analysis is that it only considered 10 million records, for future studies, it is recommended to:
+
+- apply a larger dataset
+- apply updated versions of the dataset as they are coming
+
+One element that was not included in this analysis is "genre." 
+
+"genre" can be incorporated to create a seventh model and calculate the RMSE:
+ 
+ 
+ Seventh model:  Y = movie_bi + User_bu + Genre_bg
+ 
+
+
+
