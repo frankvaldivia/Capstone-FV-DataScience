@@ -1,14 +1,14 @@
-First Project: Recommendation system
-
-Capstone_RecommSystem_FV.r is the code of the R program
-pdf_rmd.Rmd is the code to generate the PDF
-pdf_rmd.pdf is the PDF report generated
-
-
-My Own Project: Census Data
-
+First Project: Recommendation system <br>
+ <br>
+Capstone_RecommSystem_FV.r is the code of the R program <br>
+pdf_rmd.Rmd is the code to generate the PDF <br>
+pdf_rmd.pdf is the PDF report generated <br>
+ <br>
+ <br>
+My Own Project: Census Data <br>
+ <br>
 train_knn.rds KNN model <br>
-train_knn_cv.rds KNN model with Cross Validation Model
-train_dt.rds Decision Tree model
-train_dt_cp.rds Decision Tree - Complexity Parameter model
-train_rf.rds Random Forest model
+train_knn_cv.rds KNN model with Cross Validation Model <br>
+train_dt.rds Decision Tree model <br>
+train_dt_cp.rds Decision Tree - Complexity Parameter model <br>
+train_rf.rds Random Forest model <br>
