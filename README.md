@@ -7,7 +7,7 @@ pdf_rmd.pdf is the PDF report generated
 
 My Own Project: Census Data
 
-train_knn.rds KNN model
+train_knn.rds KNN model <br>
 train_knn_cv.rds KNN model with Cross Validation Model
 train_dt.rds Decision Tree model
 train_dt_cp.rds Decision Tree - Complexity Parameter model
