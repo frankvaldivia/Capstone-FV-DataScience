@@ -5,7 +5,7 @@ pdf_rmd.Rmd is the code to generate the PDF <br>
 pdf_rmd.pdf is the PDF report generated <br>
  <br>
  <br>
-My Own Project: Census Data <br>
+Second Project: My Own Project: Census Data <br>
  <br>
  Capstone_Census_Income_FV.R is the code of the R program
   <br>
