@@ -7,11 +7,11 @@ pdf_rmd.pdf is the PDF report generated <br>
  <br>
 My Own Project: Census Data <br>
  <br>
- Capstone_Census_Income_FV.R
+ Capstone_Census_Income_FV.R is the code of the R program
   <br>
- Capstone_Census_Income_FV.Rmd
+ Capstone_Census_Income_FV.Rmd is the code to generate the PDF
   <br>
- Capstone_Census_Income_FV.pdf
+ Capstone_Census_Income_FV.pdf is the PDF report generated with the Rmd file
  <br>
 
 The following are the six models files that need to be copied to the working directory to run My Own project:
