@@ -4,7 +4,7 @@ Capstone_1st_Project_RecommSystem_FV.r is the code of the R program <br>
 Capstone_1st_Project_RecommSystem_FV.Rmd is the code to generate the PDF <br>
 Capstone_1st_Project_RecommSystem_FV.pdf report generated <br>
 <br>
-================================================================== <br>
+============================================ <br>
 <br>
 Second Capstone Project:  My Own Choice - US Census Data<br>
 <br>
