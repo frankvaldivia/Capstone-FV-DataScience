@@ -23,9 +23,9 @@ https://archive.ics.uci.edu/dataset/2/adult
 3 project files:
 <br>
 <br>
-Capstone_Census_Income_FV.R is the code of the R program <br>
-Capstone_Census_Income_FV.RMD is the code to generate the PDF file<br>
-Capstone_Census_Income_FV.PDF report generated <br>
+Capstone_Census_Income_FV.R is the R code file of the project<br>
+Capstone_Census_Income_FV.RMD is the RMD code file of the project<br>
+Capstone_Census_Income_FV.PDF is the PDF report generated using the RMD file<br>
 <br>
 Because processing time to generate the models was significant (between hours and more than one day), 
 the six models evaluated were generated and saved as RDS files in this folder in GitHub.  <br>
