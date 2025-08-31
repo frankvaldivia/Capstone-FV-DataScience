@@ -29,6 +29,7 @@ Capstone_Census_Income_FV.PDF report generated <br>
 <br>
 Because processing time to generate the models was significant (between hours and more than one day), 
 the six models evaluated were generated and saved as RDS files in this folder in GitHub.  <br>
+<br>
 These six models (files) need to be downloaded to the R working directory to run the RMD file. <br>
 <br>
 - train_knn.rds: KNN model <br>
