@@ -9,13 +9,13 @@ Capstone_1st_Project_RecommSystem_FV.pdf report generated <br>
 Second Capstone Project:  My Own Choice - US Census Data<br>
 <br>
 The goal of this project is to build a CLASSIFICATION model that will predict 
-INCOME LEVEL for the 1994 US Census Data (1) downloaded from The UCI Machine Learning Repository. 
+INCOME LEVEL for the 1994 US Census Data downloaded from The UCI Machine Learning Repository. 
 <br>
 <br>
 https://archive.ics.uci.edu/dataset/2/adult
 <br>
 <br>
-The adult.zip file has the census data and is a copy from the same zip file from: <br>
+The adult.zip file has the census data and is a downloaded copy from the same zip file from: <br>
 <br>
 https://archive.ics.uci.edu/dataset/2/adult
 <br>
@@ -38,4 +38,3 @@ These six models (files) need to be downloaded to the R working directory to run
 - train_dt_cp.rds: Decision Tree - Complexity Parameter model <br>
 - train_rf.rds: Random Forest model <br>
 - train_rf_2.rds: Random Forest wth Cross Validation model <br>
-
