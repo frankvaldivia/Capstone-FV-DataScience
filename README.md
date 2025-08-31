@@ -6,7 +6,7 @@ Capstone_1st_Project_RecommSystem_FV.pdf report generated <br>
 <br>
 ============================================ <br>
 <br>
-Second Capstone Project:  My Own Choice - US Census Data<br>
+Second Capstone Project:  Choose Your Own - 1994 US Census Data<br>
 <br>
 The goal of this project is to build a CLASSIFICATION model that will predict 
 INCOME LEVEL for the 1994 US Census Data downloaded from The UCI Machine Learning Repository. 
